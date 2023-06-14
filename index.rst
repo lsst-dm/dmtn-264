@@ -143,7 +143,7 @@ the URLs are for the results, the Universal
 Worker Service Pattern is used.  This is a
 standard from the IVOA that outlines what
 the URLs are.  The data for this service
-is stored in a postgres database that the
+is stored in a Postgres database that the
 TAP service (and only the TAP service)
 connects to.
 
@@ -154,7 +154,7 @@ https://www.ivoa.net/documents/UWS/
 If you want to be able to see what queries
 are running, you can use kubectl to create
 a shell in the UWS pod, and locally connect
-to the postgres database.  This stores what
+to the Postgres database.  This stores what
 the status of each query is, including what
 user has created the query.
 
@@ -344,3 +344,76 @@ both the google_creds.json key, which contains
 a JSON document, and a key named pgpassword
 which contains the password for the Postgres
 database to connect to.
+
+Deploying the TAP service
+=========================
+
+Deploying the TAP service is fairly straight
+forward.  But let's go through it.  First off,
+there are three different repositories that you
+may need to release from.  These are the
+sdm_schemas repo, which controls the TAP_SCHEMA
+database, and the two different TAP databases,
+one for Postgres, and one for QServ.
+
+Here are the repositories:
+
+1. sdm_schemas for TAP_SCHEMA: https://github.com/lsst/sdm_schemas
+2. TAP for QServ: https://github.com/lsst-sqre/lsst-tap-service
+3. TAP for Postgres: https://github.com/lsst-sqre/tap-postgres
+
+Now that you know what repository you need to change:
+
+1. Make a PR that has the change you need.  For
+   sdm_schemas, it is probably a change to the build-all
+   file, or something in the yaml directory.  For
+   the TAP service repositories, it is probably a code
+   change.
+2. Have your PR approved and merge it.
+3. Click on the Releases link on the main repository
+   page.  This will present a page with all the
+   releases, and contains a button called "Draft
+   a new release"
+4. Click "Draft a new release" and pick the next
+   version number that makes sense according to
+   the semver standard.  This should do the build
+   and release the new version of the repository,
+   creating appropriate containers with that version
+   number.
+
+Now your change has been built and released.  Now
+you need to edit the phalanx repository to have
+different environments use your new version.
+Let's go through that.
+
+1. Clone the phalanx repository:
+   https://github.com/lsst-sqre/phalanx
+2. Now let's find the appropriate yaml files
+   to edit.
+3. Let's say you released a new version of the
+   tap-postgres repository.  You should edit
+   these two files:
+   https://github.com/lsst-sqre/phalanx/blob/main/applications/livetap/Chart.yaml
+   https://github.com/lsst-sqre/phalanx/blob/main/applications/ssotap/Chart.yaml
+   Now for both of these, edit the appVersion
+   to match the release number that you created
+   above.
+   If you released a new version of the
+   lsst-tap-service repo, edit this file:
+   https://github.com/lsst-sqre/phalanx/blob/main/applications/tap/Chart.yaml
+   Match the appVersion in this file to the release
+   number you created in the steps above.
+4. Let's say you released a new version of the
+   sdm_schema repository.  You should edit
+   these following files:
+   https://github.com/lsst-sqre/phalanx/blob/main/applications/ssotap/values.yaml
+   https://github.com/lsst-sqre/phalanx/blob/main/applications/tap/values.yaml
+   https://github.com/lsst-sqre/phalanx/blob/main/applications/livetap/values.yaml
+   Change the tap_schema.tag to match the release
+   you created in the steps above.
+
+Now that you've made all the code changes you need to,
+you can go to argo-cd on all the environments and
+sync the various TAP applications that are out of date.
+At this point your changes should be running on the
+environments.
